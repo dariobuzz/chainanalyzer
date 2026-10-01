@@ -12,8 +12,6 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   reactStrictMode: true,
   poweredByHeader: false,
-  // Self-contained server bundle in <distDir>/standalone (run `node server.js`).
-  output: "standalone",
   serverExternalPackages: ["pg"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
