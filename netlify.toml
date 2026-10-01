@@ -1,0 +1,16 @@
+# Netlify deploy. The Next.js runtime is detected automatically: pages and /api
+# routes run as serverless functions. Set env vars (DATABASE_URL, DATABASE_SSL,
+# DEMO_MODE, ETHERSCAN_API_KEY, COINGECKO_API_KEY, ...) in the Netlify UI.
+# Without DATABASE_URL the app falls back to the file store, which does not
+# persist on Netlify.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  # OFAC dataset is read at runtime via process.cwd(); make sure it ships with the functions.
+  included_files = ["data/sanctions/**"]

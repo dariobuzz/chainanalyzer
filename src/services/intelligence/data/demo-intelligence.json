@@ -1,0 +1,20 @@
+{
+  "notice": "FICTITIOUS DEMO DATA. These addresses and entities do not exist and are used only in DEMO_MODE to illustrate how verified-intelligence matches are displayed.",
+  "sanctions": [
+    {
+      "address": "0xbadc0de00000000000000000000000000000d001",
+      "entity": "DEMO Sanctioned Entity (fictitious)",
+      "program": "DEMO-PROGRAM",
+      "source": "ChainScope Demo Sanctions List",
+      "sourceUrl": "",
+      "date": "2025-06-30",
+      "reference": "DEMO-SDN-0001"
+    }
+  ],
+  "entities": [
+    { "address": "0xbadc0de00000000000000000000000000000d001", "chain": "evm", "entityName": "DEMO Sanctioned Entity (fictitious)", "entityType": "sanctioned", "confidence": 1, "reference": "DEMO-SDN-0001" },
+    { "address": "0x5ca3000000000000000000000000000000000d02", "chain": "evm", "entityName": "DEMO Phishing Cluster (fictitious)", "entityType": "scam", "confidence": 0.9, "reference": "DEMO-INTEL-0002" },
+    { "address": "0x6a3b1e0000000000000000000000000000000d03", "chain": "evm", "entityName": "DEMO Online Casino (fictitious)", "entityType": "gambling", "confidence": 0.85, "reference": "DEMO-INTEL-0003" },
+    { "address": "0x0e7c4a0000000000000000000000000000000d04", "chain": "evm", "entityName": "DEMO Offshore Exchange (fictitious)", "entityType": "high_risk_exchange", "confidence": 0.8, "reference": "DEMO-INTEL-0004" }
+  ]
+}

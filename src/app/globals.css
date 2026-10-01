@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 217 45% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 45% 12%;
+    --primary: 216 56% 15%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 25% 95%;
+    --secondary-foreground: 217 45% 15%;
+    --muted: 218 22% 96%;
+    --muted-foreground: 217 14% 42%;
+    --accent: 214 70% 46%;
+    --accent-foreground: 0 0% 100%;
+    --border: 218 20% 90%;
+    --input: 218 20% 86%;
+    --ring: 214 70% 46%;
+    --radius: 0.625rem;
+
+    /* Chart roles (dataviz reference palette, light mode) */
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #4a3aa7;
+    --series-8: #e34948;
+    --chart-in: #2a78d6;
+    --chart-out: #eb6834;
+    --chart-grid: #e6e9ef;
+    --chart-axis: #6b7385;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+@layer components {
+  .mono {
+    @apply font-mono text-[0.8125rem] tracking-tight;
+  }
+  .section-title {
+    @apply text-[0.9375rem] font-semibold tracking-tight text-foreground;
+  }
+  .eyebrow {
+    @apply text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* React Flow tweaks */
+.react-flow__attribution {
+  font-size: 9px;
+  opacity: 0.6;
+}
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+/* ── Print / PDF export ─────────────────────────────────────────────────── */
+@page {
+  size: A4;
+  margin: 14mm 12mm 16mm 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break-before {
+    break-before: page;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+  .report-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
