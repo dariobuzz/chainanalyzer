@@ -106,7 +106,7 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
   const monthly = buildMonthly(transfers);
   const now = Date.now();
   const behavior = analyzeBehavior({ transfers, counterparties, firstActivity: raw.firstActivity, now });
-  const subjectSanction = sanctions.check(address);
+  const subjectSanction = sanctions.check(chain, address);
   const subjectLabel = registry.lookup(chain, address);
 
   const overview = buildOverview(chain, raw, transfers, counterparties.length, book);
@@ -118,11 +118,11 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
 
   const dataSources: DataSource[] = [
     ...raw.sources,
-    ...sanctions.dataSources(),
+    ...sanctions.dataSources(chain),
     {
       name: "ChainScope Entity Registry",
       kind: "entity_labels",
-      detail: `${registry.size} labelled addresses (exchanges, DEXs, bridges, mixers, token contracts) from public explorer tags and protocol documentation${demo ? ", plus fictitious demo labels" : ""}.`,
+      detail: `${Object.values(registry.coverage(chain)).reduce((s, n) => s + (n ?? 0), 0)} labelled ${CHAINS[chain].name} addresses (exchanges, DEXs, bridges, mixers, token contracts) from public explorer tags and protocol documentation${demo ? ", including fictitious demo labels" : ""}.`,
       asOf: registry.version,
     },
     pricingDataSource(book),
@@ -137,7 +137,7 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
     subjectLabel,
     sanctionsAvailable: sanctions.available,
     sanctionsAsOf: sanctionsStatus.loaded ? sanctionsStatus.fetchedAt : null,
-    sanctionsAddressCount: sanctionsStatus.loaded ? sanctionsStatus.evmAddresses : 0,
+    sanctionsAddressCount: sanctionsStatus.loaded ? sanctions.addressCount(chain) : 0,
     registryCoverage: registry.coverage(chain),
     analyzedTransactions: overview.transactionsAnalyzed,
     truncated: raw.truncated,
@@ -159,7 +159,7 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
     demo,
   });
 
-  if (raw.truncated) warnings.push(`Transaction history truncated to the most recent ${config.maxTransactions} records per transfer type.`);
+  if (raw.truncated) warnings.push("Transaction history truncated: only the most recent transactions were analyzed (see data sources for the limits that apply to this chain).");
   const generatedAt = new Date(now).toISOString();
   const demoProfile = (raw as RawWalletData & { profile?: string }).profile;
 

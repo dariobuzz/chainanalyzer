@@ -99,7 +99,9 @@ async function main() {
     }
   }
 
-  const dedup = [...new Map(entries.map((e) => [`${e.currency}:${e.address.toLowerCase()}`, e])).values()];
+  // Hex and bech32 addresses are case-insensitive; base58 (Bitcoin legacy, Tron, Solana) is not.
+  const key = (a) => (/^(0x|bc1)/i.test(a) ? a.toLowerCase() : a);
+  const dedup = [...new Map(entries.map((e) => [`${e.currency}:${key(e.address)}`, e])).values()];
   const out = {
     source: "OFAC Specially Designated Nationals (SDN) List",
     sourceUrl: "https://ofac.treasury.gov/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists",
@@ -110,7 +112,12 @@ async function main() {
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   const evm = dedup.filter((e) => /^0x[a-fA-F0-9]{40}$/.test(e.address)).length;
-  console.log(`Saved ${dedup.length} digital currency addresses (${evm} EVM) → ${path.relative(process.cwd(), OUT)}`);
+  const btc = dedup.filter((e) => e.currency === "XBT").length;
+  const tron = dedup.filter((e) => /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(e.address)).length;
+  const sol = dedup.filter((e) => e.currency === "SOL").length;
+  console.log(
+    `Saved ${dedup.length} digital currency addresses (EVM ${evm}, Bitcoin ${btc}, Tron ${tron}, Solana ${sol}) → ${path.relative(process.cwd(), OUT)}`,
+  );
 }
 
 main().catch((e) => {

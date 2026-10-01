@@ -31,7 +31,7 @@ function counterpartyOf(subject: string, from: string | undefined, to: string | 
 
 export function nativeAsset(chain: ChainKey): Asset {
   const m = CHAINS[chain];
-  return { symbol: m.nativeSymbol, name: m.nativeName, contract: null, decimals: 18, kind: "native" };
+  return { symbol: m.nativeSymbol, name: m.nativeName, contract: null, decimals: m.nativeDecimals, kind: "native" };
 }
 
 export function normalizeNativeTxs(chain: ChainKey, subject: string, txs: ExplorerTx[]): Transfer[] {

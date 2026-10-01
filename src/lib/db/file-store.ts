@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { ActivityEvent, ChainKey, DataMode, EntityLabel, Investigation, ReportRecord, WalletAnalysis } from "@/types/domain";
 import type { DashboardStats, Store, WalletRecord } from "./types";
 
@@ -53,7 +53,9 @@ export class FileStore implements Store {
   }
 
   private cacheFile(chain: ChainKey, address: string, mode: DataMode) {
-    return path.join(CACHE_DIR, `${mode}-${chain}-${address.toLowerCase()}.json`);
+    // Base58 addresses are case-sensitive but Windows/macOS file names are not: hash the canonical address.
+    const key = createHash("sha256").update(address).digest("hex").slice(0, 32);
+    return path.join(CACHE_DIR, `${mode}-${chain}-${key}.json`);
   }
 
   async getCachedAnalysis(chain: ChainKey, address: string, mode: DataMode) {

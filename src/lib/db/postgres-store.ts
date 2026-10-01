@@ -1,6 +1,7 @@
 import "server-only";
 import { Pool } from "pg";
 import type { ActivityEvent, ChainKey, DataMode, EntityLabel, Investigation, ReportRecord, WalletAnalysis } from "@/types/domain";
+import { addressKey } from "@/lib/addresses";
 import type { DashboardStats, Store, WalletRecord } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -166,7 +167,7 @@ export class PostgresStore implements Store {
   async listCustomEntities(): Promise<EntityLabel[]> {
     const { rows } = await this.pool.query("select * from entities");
     return rows.map((r) => ({
-      address: String(r.address).toLowerCase(),
+      address: addressKey(String(r.address)),
       chain: r.chain,
       entityName: r.entity_name,
       entityType: r.entity_type,

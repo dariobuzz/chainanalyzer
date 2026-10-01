@@ -14,6 +14,7 @@ import type {
 } from "@/types/domain";
 import { METHODOLOGY_VERSION, NO_INTEL, RISK_CATEGORY_LABEL, RISK_ENTITY_CATEGORY, riskLevelFor } from "@/lib/constants";
 import { formatPct, formatUsd, shortAddress } from "@/lib/format";
+import { CHAINS } from "@/services/blockchain/chains";
 
 /**
  * ChainScope Risk Engine (methodology CS-RISK-0.1)
@@ -133,7 +134,7 @@ function verifiedIndicators(input: RiskInput): RiskIndicator[] {
             status: "not_detected",
             severity: null,
             scoreContribution: 0,
-            description: `No exact match between the wallet or its ${input.counterparties.length} counterparties and ${input.sanctionsAddressCount} EVM addresses on the OFAC SDN list.`,
+            description: `No exact match between the wallet or its ${input.counterparties.length} counterparties and the ${input.sanctionsAddressCount} ${CHAINS[input.chain].name}-compatible addresses on the OFAC SDN list.`,
             evidence: [],
             source: `OFAC SDN list (as of ${input.sanctionsAsOf?.slice(0, 10)})`,
           }

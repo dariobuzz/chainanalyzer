@@ -4,8 +4,10 @@
  * normalized, provider-independent structures.
  */
 
-export type ChainKey = "ethereum" | "base" | "bsc";
-export type FutureChainKey = "bitcoin" | "tron" | "solana" | "polygon" | "arbitrum";
+export type ChainKey = "ethereum" | "base" | "bsc" | "bitcoin" | "tron" | "solana";
+export type FutureChainKey = "polygon" | "arbitrum";
+/** Address format / data model family. */
+export type ChainFamily = "evm" | "utxo" | "tron" | "solana";
 
 export type DataMode = "live" | "demo";
 export type Direction = "in" | "out" | "self";
@@ -31,7 +33,7 @@ export type EntityType =
 export interface Asset {
   symbol: string;
   name?: string;
-  /** Token contract (lowercase) or null for the native asset. */
+  /** Token contract / mint (canonical address form) or null for the native asset. */
   contract: string | null;
   decimals: number;
   kind: "native" | "token";
@@ -51,7 +53,7 @@ export interface Transfer {
   asset: Asset;
   amount: number;
   usdValue: number | null;
-  /** native = top-level value transfer, token = ERC-20/BEP-20 transfer, internal = contract-originated native transfer */
+  /** native = top-level value transfer, token = ERC-20/BEP-20/TRC-20/SPL transfer, internal = contract-originated native transfer */
   kind: "native" | "token" | "internal";
   method: string | null;
   isError: boolean;

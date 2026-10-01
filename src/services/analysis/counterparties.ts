@@ -48,7 +48,7 @@ export function buildCounterparties(args: {
   const out: Counterparty[] = [];
   for (const [address, e] of map) {
     const label = registry.lookup(chain, address);
-    const sanction = sanctions.check(address);
+    const sanction = sanctions.check(chain, address);
     const isContract = contractFlags[address] ?? (e.calledWithMethod ? true : null);
     let type: EntityType = label?.entityType ?? (isContract ? "smart_contract" : "unknown_wallet");
     if (sanction) type = "sanctioned";

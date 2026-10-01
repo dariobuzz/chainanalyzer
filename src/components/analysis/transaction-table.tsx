@@ -5,7 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, ExternalLink, RotateCcw, Search } from "lu
 import type { ChainKey, Counterparty, Transfer } from "@/types/domain";
 import { ENTITY_TYPE_LABEL, NO_INTEL, RISK_CATEGORY_LABEL } from "@/lib/constants";
 import { formatAmount, formatDateTime, formatNumber, formatUsd, shortAddress } from "@/lib/format";
-import { explorerTxUrl } from "@/services/blockchain/chains";
+import { CHAINS, explorerTxUrl } from "@/services/blockchain/chains";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -77,7 +77,7 @@ export function TransactionTable({
       if (toTs !== null && t.timestamp > toTs) return false;
       if (min !== null && (t.usdValue ?? -1) < min) return false;
       if (max !== null && (t.usdValue ?? Infinity) > max) return false;
-      if (s && !(t.hash.includes(s) || t.from.includes(s) || t.to.includes(s) || cp?.displayName.toLowerCase().includes(s))) return false;
+      if (s && !(t.hash.toLowerCase().includes(s) || t.from.toLowerCase().includes(s) || t.to.toLowerCase().includes(s) || cp?.displayName.toLowerCase().includes(s))) return false;
       return true;
     });
   }, [transfers, q, dir, token, risk, from, to, minUsd, maxUsd, cpMap]);
@@ -231,7 +231,7 @@ export function TransactionTable({
                 ["Token contract", sel.asset.contract ? <Address key="c" value={sel.asset.contract} /> : "Native asset"],
                 ["Method", sel.method ?? "—"],
                 ["Status", sel.isError ? "Failed" : "Success"],
-                ["Fee", sel.feeNative !== null ? `${formatAmount(sel.feeNative, 6)} native` : "—"],
+                ["Fee", sel.feeNative !== null ? `${formatAmount(sel.feeNative, 6)} ${CHAINS[chain].nativeSymbol}` : "—"],
               ].map(([k, v]) => (
                 <div key={String(k)} className="flex items-start justify-between gap-4 py-2.5">
                   <dt className="text-muted-foreground">{k}</dt>

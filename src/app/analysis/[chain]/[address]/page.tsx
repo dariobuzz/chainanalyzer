@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { addressSchema, chainSchema } from "@/lib/validation";
+import { chainSchema, walletRefSchema } from "@/lib/validation";
+import { invalidAddressMessage } from "@/lib/addresses";
+import { CHAINS, SUPPORTED_CHAINS } from "@/services/blockchain/chains";
 import { PublicError } from "@/lib/security/errors";
 import { shortAddress } from "@/lib/format";
 import { getWalletAnalysis } from "@/services/analysis/analyze";
@@ -41,13 +43,13 @@ export default async function AnalysisPage({ params, searchParams }: { params: P
   const p = await params;
   const sp = await searchParams;
   const chain = chainSchema.safeParse(p.chain);
-  const address = addressSchema.safeParse(p.address);
-  if (!chain.success) return <AnalysisError title="Unsupported blockchain" message={`"${p.chain}" is not supported. Choose Ethereum, Base or BNB Chain.`} />;
-  if (!address.success) return <AnalysisError title="Invalid wallet address" message="Expected an EVM address: 0x followed by 40 hexadecimal characters." />;
+  if (!chain.success) return <AnalysisError title="Unsupported blockchain" message={`"${p.chain}" is not supported. Choose one of: ${SUPPORTED_CHAINS.map((c) => CHAINS[c].name).join(", ")}.`} />;
+  const ref = walletRefSchema.safeParse({ chain: chain.data, address: decodeURIComponent(p.address) });
+  if (!ref.success) return <AnalysisError title="Invalid wallet address" message={invalidAddressMessage(chain.data)} />;
 
   let analysis;
   try {
-    analysis = await getWalletAnalysis(chain.data, address.data, { refresh: sp.refresh === "1" });
+    analysis = await getWalletAnalysis(ref.data.chain, ref.data.address, { refresh: sp.refresh === "1" });
   } catch (e) {
     const msg = e instanceof PublicError ? e.message : "The analysis could not be completed. Please retry in a moment.";
     if (!(e instanceof PublicError)) console.error("[chainscope] analysis failed", e);

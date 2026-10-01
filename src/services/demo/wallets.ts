@@ -40,9 +40,30 @@ export const DEMO_WALLETS: DemoWallet[] = [
     title: "Base ecosystem user",
     description: "L2 activity with bridging from Ethereum and frequent swaps.",
   },
+  {
+    address: "bc1qkxkwxukdzrt4jpxxg0m90tcslkukvgr5ar9ycd",
+    chain: "bitcoin",
+    profile: "low",
+    title: "Long-term Bitcoin holder",
+    description: "Multi-year history, funded from regulated exchanges, infrequent outgoing payments.",
+  },
+  {
+    address: "TgAkWmxUBuVz5NnR6HSMp8q2ohCEbsmSVz",
+    chain: "tron",
+    profile: "high",
+    title: "USDT pass-through wallet on Tron",
+    description: "Recently created, scam and sanctioned-entity inflows, rapid forwarding to an offshore exchange.",
+  },
+  {
+    address: "5wD6WnRHvgBuuKkie8msD5WtoQFDjX69ayJn1pKtrKKR",
+    chain: "solana",
+    profile: "moderate",
+    title: "Active Solana trader",
+    description: "Frequent DEX swaps and bridging, minor gambling and high-risk exchange exposure.",
+  },
 ];
 
+/** Looks up a preset by canonical address (EVM addresses are lowercase; base58 is case-sensitive). */
 export function findDemoWallet(address: string): DemoWallet | undefined {
-  const a = address.toLowerCase();
-  return DEMO_WALLETS.find((w) => w.address === a);
+  return DEMO_WALLETS.find((w) => w.address === address);
 }

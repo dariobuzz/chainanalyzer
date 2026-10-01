@@ -8,13 +8,68 @@
       "source": "ChainScope Demo Sanctions List",
       "sourceUrl": "",
       "date": "2025-06-30",
-      "reference": "DEMO-SDN-0001"
+      "reference": "DEMO-SDN-0001",
+      "chain": "evm"
+    },
+    {
+      "address": "bc1qk67qztrqzehne7ypdsajfz2xejkxj20ht30xtc",
+      "entity": "DEMO Sanctioned Entity – Bitcoin (fictitious)",
+      "program": "DEMO-PROGRAM",
+      "source": "ChainScope Demo Sanctions List",
+      "sourceUrl": "",
+      "date": "2025-06-30",
+      "reference": "DEMO-SDN-BITCOIN",
+      "chain": "bitcoin"
+    },
+    {
+      "address": "TnR2rToiqSddGB5pVg9k9dRGWTCdtLD62M",
+      "entity": "DEMO Sanctioned Entity – Tron (fictitious)",
+      "program": "DEMO-PROGRAM",
+      "source": "ChainScope Demo Sanctions List",
+      "sourceUrl": "",
+      "date": "2025-06-30",
+      "reference": "DEMO-SDN-TRON",
+      "chain": "tron"
+    },
+    {
+      "address": "y14W1weVJxM5rgLmm4t1ww7AQUwvPeFzA6xiHqmjvkZZ",
+      "entity": "DEMO Sanctioned Entity – Solana (fictitious)",
+      "program": "DEMO-PROGRAM",
+      "source": "ChainScope Demo Sanctions List",
+      "sourceUrl": "",
+      "date": "2025-06-30",
+      "reference": "DEMO-SDN-SOLANA",
+      "chain": "solana"
     }
   ],
   "entities": [
     { "address": "0xbadc0de00000000000000000000000000000d001", "chain": "evm", "entityName": "DEMO Sanctioned Entity (fictitious)", "entityType": "sanctioned", "confidence": 1, "reference": "DEMO-SDN-0001" },
     { "address": "0x5ca3000000000000000000000000000000000d02", "chain": "evm", "entityName": "DEMO Phishing Cluster (fictitious)", "entityType": "scam", "confidence": 0.9, "reference": "DEMO-INTEL-0002" },
     { "address": "0x6a3b1e0000000000000000000000000000000d03", "chain": "evm", "entityName": "DEMO Online Casino (fictitious)", "entityType": "gambling", "confidence": 0.85, "reference": "DEMO-INTEL-0003" },
-    { "address": "0x0e7c4a0000000000000000000000000000000d04", "chain": "evm", "entityName": "DEMO Offshore Exchange (fictitious)", "entityType": "high_risk_exchange", "confidence": 0.8, "reference": "DEMO-INTEL-0004" }
+    { "address": "0x0e7c4a0000000000000000000000000000000d04", "chain": "evm", "entityName": "DEMO Offshore Exchange (fictitious)", "entityType": "high_risk_exchange", "confidence": 0.8, "reference": "DEMO-INTEL-0004" },
+    { "address": "bc1qk67qztrqzehne7ypdsajfz2xejkxj20ht30xtc", "chain": "bitcoin", "entityName": "DEMO Sanctioned Entity – Bitcoin (fictitious)", "entityType": "sanctioned", "confidence": 1, "reference": "DEMO-SDN-BITCOIN" },
+    { "address": "bc1qmh7nev9glfnw047jem52uhsfx8f5tayfnqaw7u", "chain": "bitcoin", "entityName": "DEMO Phishing Cluster (fictitious)", "entityType": "scam", "confidence": 0.9, "reference": "DEMO-INTEL-0005" },
+    { "address": "bc1q62tk6gc3uaqm63vaj2m3w0e4ytxxevq3dqkws3", "chain": "bitcoin", "entityName": "DEMO Online Casino (fictitious)", "entityType": "gambling", "confidence": 0.85, "reference": "DEMO-INTEL-0006" },
+    { "address": "bc1qf2nl3r8d2ux20d5jlftpgjzs8fs3rh5xe6flxx", "chain": "bitcoin", "entityName": "DEMO Offshore Exchange (fictitious)", "entityType": "high_risk_exchange", "confidence": 0.8, "reference": "DEMO-INTEL-0007" },
+    { "address": "bc1qpxnxyhs83sut5e8qa7mgjp3ra7u0wpsf92rltz", "chain": "bitcoin", "entityName": "DEMO Exchange A – hot wallet (fictitious)", "entityType": "cex", "confidence": 0.95, "reference": "DEMO-INTEL-0008" },
+    { "address": "bc1q9ynra923v5q7ced6a85vvl7ufyuj53rhxdh5sy", "chain": "bitcoin", "entityName": "DEMO Exchange B – deposit wallet (fictitious)", "entityType": "cex", "confidence": 0.95, "reference": "DEMO-INTEL-0009" },
+    { "address": "bc1qhfdyxeq7saydws3k5tmywc8c8j37gz0lghuuk8", "chain": "bitcoin", "entityName": "DEMO CoinJoin Coordinator (fictitious)", "entityType": "mixer", "confidence": 0.9, "reference": "DEMO-INTEL-0010" },
+    { "address": "TnR2rToiqSddGB5pVg9k9dRGWTCdtLD62M", "chain": "tron", "entityName": "DEMO Sanctioned Entity – Tron (fictitious)", "entityType": "sanctioned", "confidence": 1, "reference": "DEMO-SDN-TRON" },
+    { "address": "TaHzSDuKjkFrMkbHKBqpgkqR24XFJM1uYC", "chain": "tron", "entityName": "DEMO Phishing Cluster (fictitious)", "entityType": "scam", "confidence": 0.9, "reference": "DEMO-INTEL-0011" },
+    { "address": "TJFDwsWD4qumdPYn5MssWapxPnnTBQvW4c", "chain": "tron", "entityName": "DEMO Online Casino (fictitious)", "entityType": "gambling", "confidence": 0.85, "reference": "DEMO-INTEL-0012" },
+    { "address": "TZXd2DbjdmLrEC6tmp39Pn8kmn2HTW7ppb", "chain": "tron", "entityName": "DEMO Offshore Exchange (fictitious)", "entityType": "high_risk_exchange", "confidence": 0.8, "reference": "DEMO-INTEL-0013" },
+    { "address": "T4x4rxjvEhujEK8E7WuxSnnxNWbHJ6BNDh", "chain": "tron", "entityName": "DEMO Exchange A – hot wallet (fictitious)", "entityType": "cex", "confidence": 0.95, "reference": "DEMO-INTEL-0014" },
+    { "address": "TVzu9aW6eE7tRW6eegqeohXipfANVs3jGZ", "chain": "tron", "entityName": "DEMO Exchange B – deposit wallet (fictitious)", "entityType": "cex", "confidence": 0.95, "reference": "DEMO-INTEL-0015" },
+    { "address": "Ty84gMLSwbcxL2hN2evNK637tWjgwYGAmm", "chain": "tron", "entityName": "DEMO DEX Router (fictitious)", "entityType": "dex", "confidence": 0.95, "reference": "DEMO-INTEL-0016" },
+    { "address": "TCbeQqZZNvoHCnU3zQg11JmxjmEuvjxx3J", "chain": "tron", "entityName": "DEMO Cross-chain Bridge (fictitious)", "entityType": "bridge", "confidence": 0.95, "reference": "DEMO-INTEL-0017" },
+    { "address": "y14W1weVJxM5rgLmm4t1ww7AQUwvPeFzA6xiHqmjvkZZ", "chain": "solana", "entityName": "DEMO Sanctioned Entity – Solana (fictitious)", "entityType": "sanctioned", "confidence": 1, "reference": "DEMO-SDN-SOLANA" },
+    { "address": "uUiiuCutdiKNBfftPQ4LA3cyVzpvSnHCMtSw9JhGZN33", "chain": "solana", "entityName": "DEMO Phishing Cluster (fictitious)", "entityType": "scam", "confidence": 0.9, "reference": "DEMO-INTEL-0018" },
+    { "address": "pZ4AjVyBWrXMcZY5kTo6aKeUfAM9x3Xw6cu528ZJewgP", "chain": "solana", "entityName": "DEMO Online Casino (fictitious)", "entityType": "gambling", "confidence": 0.85, "reference": "DEMO-INTEL-0019" },
+    { "address": "MyPXDHDsdEfbLqfHwbmRwZYE9y5tF1VEemD6rG4L4Bc5", "chain": "solana", "entityName": "DEMO Offshore Exchange (fictitious)", "entityType": "high_risk_exchange", "confidence": 0.8, "reference": "DEMO-INTEL-0020" },
+    { "address": "8G3yZc8fCvgPhbW5FCwxFsZ2mFw3XtNiTcsg5xURvp4Y", "chain": "solana", "entityName": "DEMO Exchange A – hot wallet (fictitious)", "entityType": "cex", "confidence": 0.95, "reference": "DEMO-INTEL-0021" },
+    { "address": "22nhGSg1XtRWQS75SZvFSTdgXw91ppeKZucGX4f84NiV", "chain": "solana", "entityName": "DEMO Exchange B – deposit wallet (fictitious)", "entityType": "cex", "confidence": 0.95, "reference": "DEMO-INTEL-0022" },
+    { "address": "cHvWHbhcwr8su2RAWdEAHGFJaub3s5N4GmkxDq7yoDgW", "chain": "solana", "entityName": "DEMO DEX Router (fictitious)", "entityType": "dex", "confidence": 0.95, "reference": "DEMO-INTEL-0023" },
+    { "address": "VycFyqBm3tWcDZDFpbbHrpDhM3NM86s5fTSipvJva9uj", "chain": "solana", "entityName": "DEMO Cross-chain Bridge (fictitious)", "entityType": "bridge", "confidence": 0.95, "reference": "DEMO-INTEL-0024" },
+    { "address": "aMdKYW3A1tdtCKxvy3XULagM8X9MsUEbtDhyKqQivi2u", "chain": "solana", "entityName": "DEMO Privacy Pool (fictitious)", "entityType": "mixer", "confidence": 0.9, "reference": "DEMO-INTEL-0025" }
   ]
 }

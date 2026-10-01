@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Search } from "lucide-react";
 import type { ChainKey } from "@/types/domain";
 import { CHAINS, SUPPORTED_CHAINS } from "@/services/blockchain/chains";
+import { ADDRESS_PLACEHOLDER, canonicalAddress, detectFamily, invalidAddressMessage } from "@/lib/addresses";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const EVM = /^0x[a-fA-F0-9]{40}$/;
 
 export function AnalyzeForm({ size = "lg", defaultChain = "ethereum" }: { size?: "lg" | "sm"; defaultChain?: ChainKey }) {
   const router = useRouter();
@@ -19,13 +18,31 @@ export function AnalyzeForm({ size = "lg", defaultChain = "ethereum" }: { size?:
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const a = address.trim();
-    if (!EVM.test(a)) {
-      setError("Enter a valid EVM address: 0x followed by 40 hexadecimal characters.");
+    // The network is chosen explicitly, but a non-EVM address format identifies its chain unambiguously.
+    let target = chain;
+    if (!canonicalAddress(chain, address)) {
+      const family = detectFamily(address);
+      const detected = family && family !== "evm" ? SUPPORTED_CHAINS.find((c) => CHAINS[c].family === family) : undefined;
+      if (detected) target = detected;
+    }
+    const a = canonicalAddress(target, address);
+    if (!a) {
+      setError(invalidAddressMessage(chain));
       return;
     }
     setError(null);
-    startTransition(() => router.push(`/analysis/${chain}/${a.toLowerCase()}`));
+    if (target !== chain) setChain(target);
+    startTransition(() => router.push(`/analysis/${target}/${encodeURIComponent(a)}`));
+  }
+
+  function onAddressChange(v: string) {
+    setAddress(v);
+    const family = detectFamily(v);
+    // Switch the network selector when the address can only belong to another family.
+    if (family && family !== CHAINS[chain].family) {
+      const match = SUPPORTED_CHAINS.find((c) => CHAINS[c].family === family);
+      if (match) setChain(match);
+    }
   }
 
   const lg = size === "lg";
@@ -42,8 +59,8 @@ export function AnalyzeForm({ size = "lg", defaultChain = "ethereum" }: { size?:
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Enter wallet address (0x…)"
+            onChange={(e) => onAddressChange(e.target.value)}
+            placeholder={`Enter wallet address (${ADDRESS_PLACEHOLDER[CHAINS[chain].family]})`}
             aria-label="Wallet address"
             spellCheck={false}
             autoComplete="off"

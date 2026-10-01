@@ -1,7 +1,9 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import type { DataSource, SanctionMatch } from "@/types/domain";
+import type { ChainFamily, ChainKey, DataSource, SanctionMatch } from "@/types/domain";
+import { addressKey, canonicalForFamily } from "@/lib/addresses";
+import { CHAINS } from "@/services/blockchain/chains";
 import demoIntel from "./data/demo-intelligence.json";
 
 /**
@@ -11,6 +13,9 @@ import demoIntel from "./data/demo-intelligence.json";
  * identifiers with entity name, program and SDN entry number.
  *
  * A wallet is NEVER classified as sanctioned without an exact address match.
+ * Entries are indexed per chain family (EVM, Bitcoin, Tron, Solana) using the
+ * listed currency and the address format; other currencies (XMR, LTC, …) are
+ * kept in the dataset but not screened.
  */
 
 export interface SanctionsDataset {
@@ -23,24 +28,38 @@ export interface SanctionsDataset {
 
 const DATASET_PATH = path.join(process.cwd(), "data", "sanctions", "ofac-sdn.json");
 
-let loaded: { mtime: number; data: SanctionsDataset | null; index: Map<string, SanctionMatch> } | null = null;
+type Index = Record<ChainFamily, Map<string, SanctionMatch>>;
+const emptyIndex = (): Index => ({ evm: new Map(), utxo: new Map(), tron: new Map(), solana: new Map() });
+
+/** Chain family an OFAC entry applies to, or null when no supported chain uses it. */
+function familyOf(currency: string, address: string): ChainFamily | null {
+  if (canonicalForFamily("evm", address)) return "evm";
+  if (canonicalForFamily("tron", address)) return "tron"; // TRX and TRC-20 stablecoins (USDT, USDC)
+  if (currency === "XBT" && canonicalForFamily("utxo", address)) return "utxo";
+  if (["SOL", "USDC", "USDT"].includes(currency) && canonicalForFamily("solana", address) && address.length >= 40) return "solana";
+  return null;
+}
+
+let loaded: { mtime: number; data: SanctionsDataset | null; index: Index } | null = null;
 
 function load() {
   let mtime = 0;
   try {
     mtime = fs.statSync(DATASET_PATH).mtimeMs;
   } catch {
-    loaded = { mtime: 0, data: null, index: new Map() };
+    loaded = { mtime: 0, data: null, index: emptyIndex() };
     return loaded;
   }
   if (loaded && loaded.mtime === mtime) return loaded;
   try {
     const data = JSON.parse(fs.readFileSync(DATASET_PATH, "utf8")) as SanctionsDataset;
-    const index = new Map<string, SanctionMatch>();
+    const index = emptyIndex();
     for (const e of data.entries) {
-      if (!/^0x[a-fA-F0-9]{40}$/.test(e.address)) continue; // EVM addresses only
-      index.set(e.address.toLowerCase(), {
-        address: e.address.toLowerCase(),
+      const family = familyOf(e.currency, e.address);
+      if (!family) continue;
+      const address = canonicalForFamily(family, e.address)!;
+      index[family].set(address, {
+        address,
         entity: e.entity,
         program: e.program,
         source: data.source,
@@ -52,13 +71,13 @@ function load() {
     loaded = { mtime, data, index };
   } catch (err) {
     console.error("[chainscope] failed to parse sanctions dataset", err);
-    loaded = { mtime, data: null, index: new Map() };
+    loaded = { mtime, data: null, index: emptyIndex() };
   }
   return loaded;
 }
 
 const demoIndex = new Map<string, SanctionMatch>(
-  demoIntel.sanctions.map((s) => [s.address.toLowerCase(), { ...s, address: s.address.toLowerCase(), demo: true }]),
+  demoIntel.sanctions.map((s) => [addressKey(s.address), { ...s, address: addressKey(s.address), demo: true }]),
 );
 
 export class SanctionsScreener {
@@ -71,24 +90,46 @@ export class SanctionsScreener {
 
   get status() {
     const l = load();
-    return l.data
-      ? { loaded: true as const, source: l.data.source, fetchedAt: l.data.fetchedAt, evmAddresses: l.index.size, sourceUrl: l.data.sourceUrl }
-      : { loaded: false as const };
+    if (!l.data) return { loaded: false as const };
+    const counts = Object.fromEntries(Object.entries(l.index).map(([f, m]) => [f, m.size])) as Record<ChainFamily, number>;
+    return {
+      loaded: true as const,
+      source: l.data.source,
+      fetchedAt: l.data.fetchedAt,
+      sourceUrl: l.data.sourceUrl,
+      addressesByFamily: counts,
+      screenedAddresses: Object.values(counts).reduce((s, n) => s + n, 0),
+    };
   }
 
-  check(address: string): SanctionMatch | null {
-    const a = address.toLowerCase();
-    return load().index.get(a) ?? (this.includeDemo ? (demoIndex.get(a) ?? null) : null);
+  /** Number of listed addresses that can match on this chain. */
+  addressCount(chain: ChainKey): number {
+    return load().index[CHAINS[chain].family].size;
   }
 
-  dataSources(): DataSource[] {
+  /** Exact match of a canonical address against the list for this chain's family. */
+  check(chain: ChainKey, address: string): SanctionMatch | null {
+    return load().index[CHAINS[chain].family].get(address) ?? (this.includeDemo ? (demoIndex.get(addressKey(address)) ?? null) : null);
+  }
+
+  /** Exact match against every family (when the chain is unknown). */
+  checkAny(address: string): SanctionMatch | null {
+    const key = addressKey(address);
+    for (const m of Object.values(load().index)) {
+      const hit = m.get(key);
+      if (hit) return hit;
+    }
+    return this.includeDemo ? (demoIndex.get(key) ?? null) : null;
+  }
+
+  dataSources(chain: ChainKey): DataSource[] {
     const s = this.status;
     const out: DataSource[] = [];
     if (s.loaded) {
       out.push({
         name: s.source,
         kind: "sanctions",
-        detail: `Exact-match screening against ${s.evmAddresses} EVM digital currency addresses listed on the OFAC SDN list.`,
+        detail: `Exact-match screening against ${this.addressCount(chain)} ${CHAINS[chain].name}-compatible digital currency addresses listed on the OFAC SDN list.`,
         url: s.sourceUrl,
         asOf: s.fetchedAt,
       });

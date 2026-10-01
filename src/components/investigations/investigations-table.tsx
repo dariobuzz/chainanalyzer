@@ -45,7 +45,7 @@ export function InvestigationsTable({ initial }: { initial: Investigation[] }) {
 
   const rows = items.filter((i) => {
     const s = q.trim().toLowerCase();
-    return (status === "all" || i.status === status) && (!s || i.address.includes(s) || i.clientReference.toLowerCase().includes(s));
+    return (status === "all" || i.status === status) && (!s || i.address.toLowerCase().includes(s) || i.clientReference.toLowerCase().includes(s));
   });
 
   async function setItemStatus(i: Investigation, s: InvestigationStatus) {

@@ -20,7 +20,7 @@ cp .env.example .env.local      # DEMO_MODE=true by default
 npm run dev                     # http://localhost:3000
 ```
 
-It runs straight away in **Demo Mode**, with no API keys and no database. Open the home page and pick one of the sample wallets, or type in any EVM address.
+It runs straight away in **Demo Mode**, with no API keys and no database. Open the home page and pick one of the sample wallets, or type in any Ethereum, Base, BNB Chain, Bitcoin, Tron or Solana address. The network is detected from the address format where it is unambiguous.
 
 **Corporate network / TLS inspection.** If outgoing HTTPS fails with `SELF_SIGNED_CERT_IN_CHAIN`, start the app with `npm run dev:system-ca`, which runs Node with the Windows/macOS certificate store. You need this for live data, Google Fonts and `sanctions:sync`.
 
@@ -36,8 +36,18 @@ ETHERSCAN_API_KEY=your_key   # strongly recommended; required for BNB Chain
 | Ethereum  | Etherscan API V2 → Blockscout fallback (no key)    | JSON-RPC (publicnode)                |
 | Base      | Etherscan API V2 → Blockscout fallback (no key)    | JSON-RPC (mainnet.base.org)          |
 | BNB Chain | Etherscan API V2 (key required)                    | JSON-RPC (bnbchain dataseed)         |
+| Bitcoin   | Esplora API: mempool.space → Blockstream (no key)  | Esplora (address balance)            |
+| Tron      | TronGrid v1 (no key; `TRONGRID_API_KEY` recommended) | TronGrid (TRX + TRC-20 balances)     |
+| Solana    | JSON-RPC (`RPC_SOLANA_URL`)                        | JSON-RPC (SOL + SPL balances, program detection) |
 
 The public Blockscout API without a key is heavily rate-limited, especially from shared corporate IPs. For a reliable live demo, configure `ETHERSCAN_API_KEY`.
+
+**Non-EVM chains.**
+- **Bitcoin** is UTXO-based. Each transaction is mapped to transfers per counterparty address. Net outflow is own inputs minus change minus the wallet's share of the fee, spread over the external outputs. Received amounts are attributed to the input addresses pro rata. History is fetched in pages of 25, up to `MAX_TRANSACTIONS_BITCOIN`. When it is truncated, the first-activity date is reported as unknown rather than guessed.
+- **Tron**: TRX transfers, smart-contract calls and TRC-20 transfers. Only USDT (TRC-20, by contract) is priced. Spoofed look-alike tokens, common on Tron, stay unpriced.
+- **Solana**: SOL and SPL token transfers, with token accounts resolved to their owners. Program interactions are counted like EVM contract calls. **The public RPC serves only about 10 transaction lookups per 10 seconds**, so live Solana analyses on it cover just the most recent handful of transactions. Set `RPC_SOLANA_URL` to a dedicated endpoint for real use.
+- Every provider stops paging after `HISTORY_TIME_BUDGET_MS` (6 s by default), so an analysis fits within Netlify's 10-second function limit. The report then states that the history was truncated.
+- Sanctions screening covers the OFAC SDN addresses listed for each chain: about 130 EVM, 520 Bitcoin, 340 Tron and 3 Solana addresses. The entity registry has **no real labels yet** for Bitcoin, Tron or Solana, so counterparties there show up as "Unknown wallet" unless they are sanctioned.
 
 ### Sanctions data (OFAC SDN)
 
@@ -126,14 +136,17 @@ src/
 │     ├─ analysis/[chain]/[address]  GET  (?refresh=1)
 │     ├─ investigations[/id]         GET POST PATCH DELETE
 │     ├─ reports                     GET POST
-│     ├─ sanctions/check             GET ?address=
+│     ├─ sanctions/check             GET ?address=[&chain=]
 │     └─ status                      GET (non-secret config)
 ├─ services/
 │  ├─ blockchain/                    Provider abstraction layer
 │  │  ├─ types.ts                    BlockchainProvider / RawWalletData / ExplorerClient
-│  │  ├─ chains.ts                   Chain registry (+ planned: BTC, Tron, Solana, Polygon, Arbitrum)
+│  │  ├─ chains.ts                   Chain registry (+ planned: Polygon, Arbitrum)
 │  │  ├─ ethereum.ts base.ts bsc.ts  Per-chain provider factories
 │  │  ├─ evm-adapter.ts              Generic EVM adapter (explorer + RPC)
+│  │  ├─ bitcoin.ts                  Bitcoin adapter (Esplora, UTXO → transfers)
+│  │  ├─ tron.ts                     Tron adapter (TronGrid, TRX / TRC-20)
+│  │  ├─ solana.ts                   Solana adapter (JSON-RPC, SOL / SPL)
 │  │  ├─ normalize.ts                Raw → normalized Transfer
 │  │  └─ providers/                  etherscan-compatible.ts, rpc.ts, http.ts
 │  ├─ intelligence/
@@ -149,7 +162,8 @@ src/
 │  ├─ config.ts                      Server-only env parsing
 │  ├─ db/                            Store interface, FileStore, PostgresStore
 │  ├─ security/                      rate-limit.ts, errors.ts (safe error handling)
-│  └─ validation.ts                  zod schemas, address validation
+│  ├─ addresses.ts                   Address formats per chain family (canonical form, detection)
+│  └─ validation.ts                  zod schemas (chain + address validated together)
 ├─ components/                       ui/ (shadcn-style), analysis/, report/, investigations/, layout/
 └─ types/domain.ts                   Domain model
 scripts/  sync-sanctions.mjs · migrate.mjs
@@ -157,21 +171,21 @@ supabase/migrations/0001_init.sql    users, wallets, transactions, counterpartie
                                      risk_indicators, investigations, reports, analysis_cache, activity_log
 ```
 
-**Adding a provider or a chain.** Implement `BlockchainProvider.fetchWalletData()` (or a new `ExplorerClient`), then register it in `services/blockchain/index.ts`. Nothing downstream changes. A non-EVM chain also needs its own address validator in `lib/validation.ts`.
+**Adding a provider or a chain.** Implement `BlockchainProvider.fetchWalletData()` (or a new `ExplorerClient`), then register it in `services/blockchain/index.ts`. Nothing downstream changes. A new chain family also needs its address format in `lib/addresses.ts`. Hex and bech32 addresses are stored lowercase; base58 addresses are case-sensitive and kept as written.
 
 **Multi-hop graph.** `buildFundFlowGraph()` builds a 1-hop graph and keeps node IDs keyed by address, with `maxSupportedDepth`, so 2-hop and 3-hop expansions can be merged into the same graph later.
 
 ### Security
 
 - Every provider call runs server-side. API keys are read only in `lib/config.ts` (`server-only`), never with a `NEXT_PUBLIC_` prefix.
-- Inputs are validated with zod (chain enum, EVM address regex, body schemas, UUID IDs).
+- Inputs are validated with zod (chain enum, per-chain address formats, body schemas, UUID IDs).
 - Per-IP rate limiting (`RateLimitStore` interface; swap in Redis for multi-instance deployments).
 - Errors are sanitized: internal errors return a generic message, and provider URLs and keys are never echoed back.
 - Security headers (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`).
 
 ### Demo Mode
 
-With `DEMO_MODE=true`, every analysis comes from a **deterministic, synthetic dataset**. The same address always gives the same story. The data is labelled **"Demo Data"** in the header banner, the badges, the summary and a watermark on the report. Demo risk entities (a sanctioned entity, a phishing cluster, a casino, an offshore exchange) are **fictitious**, use clearly synthetic addresses, and are never mixed with real intelligence.
+With `DEMO_MODE=true`, every analysis comes from a **deterministic, synthetic dataset**. The same address always gives the same story. The data is labelled **"Demo Data"** in the header banner, the badges, the summary and a watermark on the report. Demo risk entities (a sanctioned entity, a phishing cluster, a casino, an offshore exchange) are **fictitious**, use clearly synthetic addresses, and are never mixed with real intelligence. On Bitcoin, Tron and Solana, the exchanges, DEX, bridges and mixers in demo data are fictitious too. Their addresses use the chain's format but have no valid checksum.
 
 ---
 
@@ -181,7 +195,8 @@ With `DEMO_MODE=true`, every analysis comes from a **deterministic, synthetic da
 - **Phase 2** ✅ (base) Live ETH, Base and BNB via Etherscan V2 / Blockscout / RPC. Next: historical pricing, deeper pagination
 - **Phase 3** ✅ (base) OFAC SDN sync + Entity Registry. Next: more sanctions lists (EU, UK OFSI, UN), registry admin UI, commercial intelligence feeds
 - **Phase 4** ✅ (base) Browser PDF export, persisted investigations, report snapshots. Next: server-side PDF, authentication (Supabase Auth) and roles
-- Later: 2–3 hop graph expansion, Bitcoin, Tron, Solana, Polygon, Arbitrum
+- **Multichain** ✅ (base) Bitcoin, Tron and Solana: live adapters, OFAC screening, demo data. Next: entity labels for these chains, Bitcoin address clustering, historical pricing
+- Later: 2–3 hop graph expansion, Polygon, Arbitrum
 
 ---
 

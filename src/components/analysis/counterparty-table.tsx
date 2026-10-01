@@ -25,7 +25,7 @@ export function CounterpartyTable({ counterparties, transfers, chain }: { counte
   const rows = React.useMemo(() => {
     const s = q.trim().toLowerCase();
     return counterparties.filter(
-      (c) => (type === "all" || c.type === type) && (!s || c.address.includes(s) || c.displayName.toLowerCase().includes(s)),
+      (c) => (type === "all" || c.type === type) && (!s || c.address.toLowerCase().includes(s) || c.displayName.toLowerCase().includes(s)),
     );
   }, [counterparties, q, type]);
   React.useEffect(() => setPage(1), [q, type]);

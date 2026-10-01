@@ -1,5 +1,7 @@
 import "server-only";
 import type { ChainKey, EntityLabel, EntityType } from "@/types/domain";
+import { addressKey } from "@/lib/addresses";
+import { isEvmChain } from "@/services/blockchain/chains";
 import seed from "./data/entities.seed.json";
 import demoIntel from "./data/demo-intelligence.json";
 
@@ -7,6 +9,7 @@ import demoIntel from "./data/demo-intelligence.json";
  * Entity Registry.
  * Resolution order: custom labels (DB / runtime, future) → curated seed → demo labels (demo mode only).
  * Schema mirrors the `entities` table: address, chain, entityName, entityType, source, confidence, lastUpdated.
+ * Labels with chain "evm" apply to every EVM chain (same address on all of them).
  */
 
 interface SeedEntry {
@@ -22,7 +25,7 @@ const SEED_SOURCE = seed.source;
 
 function toLabel(e: SeedEntry, source: string, lastUpdated: string, demo = false): EntityLabel {
   return {
-    address: e.address.toLowerCase(),
+    address: addressKey(e.address),
     chain: e.chain as EntityLabel["chain"],
     entityName: e.entityName,
     entityType: e.entityType as EntityType,
@@ -55,8 +58,8 @@ export class EntityRegistry {
   ) {}
 
   lookup(chain: ChainKey, address: string): EntityLabel | null {
-    const a = address.toLowerCase();
-    const keys = [`${chain}:${a}`, `evm:${a}`];
+    const a = addressKey(address);
+    const keys = isEvmChain(chain) ? [`${chain}:${a}`, `evm:${a}`] : [`${chain}:${a}`];
     for (const k of keys) {
       const hit = this.custom.get(k) ?? seedIndex.get(k) ?? (this.includeDemo ? demoIndex.get(k) : undefined);
       if (hit) return hit;
@@ -69,7 +72,7 @@ export class EntityRegistry {
     const out: Partial<Record<EntityType, number>> = {};
     const all = [...seedLabels, ...(this.includeDemo ? demoLabels : []), ...this.custom.values()];
     for (const l of all) {
-      if (l.chain !== chain && l.chain !== "evm") continue;
+      if (l.chain !== chain && !(l.chain === "evm" && isEvmChain(chain))) continue;
       out[l.entityType] = (out[l.entityType] ?? 0) + 1;
     }
     return out;

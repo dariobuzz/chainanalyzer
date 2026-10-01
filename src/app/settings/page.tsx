@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CheckCircle2, CircleDashed, XCircle } from "lucide-react";
 import { publicConfigStatus } from "@/lib/config";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import { CHAINS, PLANNED_CHAINS, SUPPORTED_CHAINS } from "@/services/blockchain/chains";
+import { CHAINS, FAMILY_LABEL, PLANNED_CHAINS, SUPPORTED_CHAINS } from "@/services/blockchain/chains";
 import { SanctionsScreener } from "@/services/intelligence/sanctions";
 import { createEntityRegistry } from "@/services/intelligence/entities";
 import { VERIFIED_RULES } from "@/services/intelligence/risk";
@@ -55,6 +55,19 @@ export default function SettingsPage() {
             />
             <Row label="Blockscout (keyless)" ok value="Ethereum, Base" />
             <Row label="JSON-RPC" ok value="Balances, token balances, contract detection" />
+            <Row label="Bitcoin (Esplora, keyless)" ok value={cfg.bitcoinApiHosts.join(", ")} hint={`Up to ${formatNumber(cfg.maxTransactionsBitcoin)} transactions per analysis.`} />
+            <Row
+              label="TronGrid"
+              ok={cfg.trongridKeyConfigured ? true : null}
+              value={cfg.trongridKeyConfigured ? "Configured" : "Keyless (rate limited)"}
+              hint="Set TRONGRID_API_KEY for reliable live Tron data."
+            />
+            <Row
+              label="Solana JSON-RPC"
+              ok={cfg.solanaRpcCustom ? true : null}
+              value={cfg.solanaRpcCustom ? "Custom endpoint" : "Public endpoint (rate limited)"}
+              hint={`Up to ${formatNumber(cfg.maxTransactionsSolana)} transactions per analysis. Set RPC_SOLANA_URL to a dedicated RPC for deeper history.`}
+            />
             <Row label="Pricing" ok={null} value={cfg.coingeckoKeyConfigured ? "CoinGecko (keyed)" : "CoinGecko public API"} />
             <Row label="Max transactions per type" ok={null} value={formatNumber(cfg.maxTransactions)} />
           </CardContent>
@@ -69,8 +82,12 @@ export default function SettingsPage() {
             <Row
               label="OFAC SDN list"
               ok={sanctions.loaded}
-              value={sanctions.loaded ? `${formatNumber(sanctions.evmAddresses)} EVM addresses` : "Not loaded"}
-              hint={sanctions.loaded ? `Synced ${formatDateTime(sanctions.fetchedAt)} · refresh with npm run sanctions:sync` : "Run npm run sanctions:sync"}
+              value={sanctions.loaded ? `${formatNumber(sanctions.screenedAddresses)} screened addresses` : "Not loaded"}
+              hint={
+                sanctions.loaded
+                  ? `EVM ${formatNumber(sanctions.addressesByFamily.evm)} · Bitcoin ${formatNumber(sanctions.addressesByFamily.utxo)} · Tron ${formatNumber(sanctions.addressesByFamily.tron)} · Solana ${formatNumber(sanctions.addressesByFamily.solana)} · synced ${formatDateTime(sanctions.fetchedAt)} · refresh with npm run sanctions:sync`
+                  : "Run npm run sanctions:sync"
+              }
             />
             <Row label="ChainScope Entity Registry" ok value={`${formatNumber(registry.size)} labels`} hint={`Version ${registry.version} · ${registry.sourceName}`} />
             <div className="mt-4">
@@ -109,7 +126,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             {SUPPORTED_CHAINS.map((c) => (
-              <Row key={c} label={CHAINS[c].name} ok value={`EVM · chain id ${CHAINS[c].evmChainId}`} />
+              <Row key={c} label={CHAINS[c].name} ok value={`${FAMILY_LABEL[CHAINS[c].family]}${CHAINS[c].evmChainId ? ` · chain id ${CHAINS[c].evmChainId}` : ""}`} />
             ))}
             {PLANNED_CHAINS.map((c) => (
               <Row key={c.key} label={c.name} ok={null} value="Planned" hint={c.family === "evm" ? "EVM adapter reuse" : `Requires ${c.family} adapter`} />

@@ -2,15 +2,16 @@ import "server-only";
 import type { Asset, ChainKey, DataSource } from "@/types/domain";
 import { config } from "@/lib/config";
 import { fetchJson } from "@/services/blockchain/providers/http";
+import { addressKey } from "@/lib/addresses";
 
 /**
  * Pricing service.
- * Tokens are priced ONLY by verified contract address (never by symbol) to
- * avoid valuing spoofed tokens (e.g. fake "USDT" airdrops).
+ * Tokens are priced ONLY by verified contract / mint address (never by symbol)
+ * to avoid valuing spoofed tokens (e.g. fake "USDT" airdrops, common on Tron).
  * MVP limitation: current spot prices are applied to historical transfers.
  */
 
-type PriceRef = "usd_peg" | "ethereum" | "binancecoin" | "bitcoin";
+type PriceRef = "usd_peg" | "ethereum" | "binancecoin" | "bitcoin" | "tron" | "solana";
 
 interface KnownToken {
   asset: Asset;
@@ -18,7 +19,7 @@ interface KnownToken {
 }
 
 const tok = (symbol: string, contract: string, decimals: number, price: PriceRef, name?: string): KnownToken => ({
-  asset: { symbol, name, contract: contract.toLowerCase(), decimals, kind: "token" },
+  asset: { symbol, name, contract: addressKey(contract), decimals, kind: "token" },
   price,
 });
 
@@ -44,9 +45,26 @@ export const KNOWN_TOKENS: Record<ChainKey, KnownToken[]> = {
     tok("ETH", "0x2170ed0880ac9a755fd29b2688956bd959f933f8", 18, "ethereum", "Binance-Peg Ether"),
     tok("BTCB", "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c", 18, "bitcoin", "Binance-Peg BTC"),
   ],
+  bitcoin: [],
+  tron: [
+    // USDC on Tron was discontinued by Circle ("USD Coin Old") and is deliberately left unpriced.
+    tok("USDT", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", 6, "usd_peg", "Tether USD (TRC-20)"),
+  ],
+  solana: [
+    tok("USDC", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 6, "usd_peg", "USD Coin (SPL)"),
+    tok("USDT", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", 6, "usd_peg", "Tether USD (SPL)"),
+    tok("wSOL", "So11111111111111111111111111111111111111112", 9, "solana", "Wrapped SOL"),
+  ],
 };
 
-const NATIVE_REF: Record<ChainKey, PriceRef> = { ethereum: "ethereum", base: "ethereum", bsc: "binancecoin" };
+const NATIVE_REF: Record<ChainKey, PriceRef> = {
+  ethereum: "ethereum",
+  base: "ethereum",
+  bsc: "binancecoin",
+  bitcoin: "bitcoin",
+  tron: "tron",
+  solana: "solana",
+};
 
 export interface PriceBook {
   /** USD price of each reference asset; null when unavailable. */
@@ -57,7 +75,7 @@ export interface PriceBook {
 }
 
 export const DEMO_PRICES: PriceBook = {
-  refs: { ethereum: 2450, binancecoin: 590, bitcoin: 64000 },
+  refs: { ethereum: 2450, binancecoin: 590, bitcoin: 64000, tron: 0.16, solana: 150 },
   source: "Demo price table (fixed, illustrative)",
   asOf: "demo",
   demo: true,
@@ -75,7 +93,7 @@ export async function getLivePriceBook(): Promise<{ book: PriceBook; warning?: s
   }
   try {
     const data = await fetchJson<Record<string, { usd?: number }>>(
-      `${config.coingecko.apiUrl}/simple/price?ids=ethereum,binancecoin,bitcoin&vs_currencies=usd`,
+      `${config.coingecko.apiUrl}/simple/price?ids=ethereum,binancecoin,bitcoin,tron,solana&vs_currencies=usd`,
       { provider: "CoinGecko", headers, timeoutMs: 8000 },
     );
     const book: PriceBook = {
@@ -83,6 +101,8 @@ export async function getLivePriceBook(): Promise<{ book: PriceBook; warning?: s
         ethereum: data.ethereum?.usd ?? null,
         binancecoin: data.binancecoin?.usd ?? null,
         bitcoin: data.bitcoin?.usd ?? null,
+        tron: data.tron?.usd ?? null,
+        solana: data.solana?.usd ?? null,
       },
       source: "CoinGecko spot prices",
       asOf: new Date().toISOString(),
@@ -92,7 +112,7 @@ export async function getLivePriceBook(): Promise<{ book: PriceBook; warning?: s
     return { book };
   } catch (e) {
     return {
-      book: { refs: { ethereum: null, binancecoin: null, bitcoin: null }, source: "Unavailable", asOf: new Date().toISOString(), demo: false },
+      book: { refs: { ethereum: null, binancecoin: null, bitcoin: null, tron: null, solana: null }, source: "Unavailable", asOf: new Date().toISOString(), demo: false },
       warning: `Price data unavailable (${(e as Error).message}); USD values are not shown.`,
     };
   }

@@ -1,38 +1,37 @@
 import { z } from "zod";
 import type { ChainKey } from "@/types/domain";
 import { SUPPORTED_CHAINS } from "@/services/blockchain/chains";
-
-const EVM_ADDRESS = /^0x[a-fA-F0-9]{40}$/;
+import { canonicalAddress, invalidAddressMessage } from "@/lib/addresses";
 
 export function isSupportedChain(v: string): v is ChainKey {
   return (SUPPORTED_CHAINS as string[]).includes(v);
 }
 
-export function isEvmAddress(v: string): boolean {
-  return EVM_ADDRESS.test(v.trim());
-}
-
-/** Normalizes an EVM address to lowercase. Returns null when invalid. */
-export function normalizeAddress(v: string): string | null {
-  const t = v.trim();
-  return isEvmAddress(t) ? t.toLowerCase() : null;
-}
-
 export const chainSchema = z.enum(SUPPORTED_CHAINS as [ChainKey, ...ChainKey[]]);
-export const addressSchema = z
-  .string()
-  .trim()
-  .regex(EVM_ADDRESS, "Invalid wallet address: expected 0x followed by 40 hexadecimal characters")
-  .transform((s) => s.toLowerCase());
+
+/** Address formats depend on the chain, so the address is always validated together with it. */
+const chainAddress = { chain: chainSchema, address: z.string().trim().min(1, "Wallet address is required").max(128) };
+type ChainAddress = { chain: ChainKey; address: string };
+
+const checkAddress = (v: ChainAddress, ctx: z.RefinementCtx) => {
+  if (!canonicalAddress(v.chain, v.address)) ctx.addIssue({ code: "custom", path: ["address"], message: invalidAddressMessage(v.chain) });
+};
+/** Rewrites the address in canonical form (lowercase hex / bech32, base58 unchanged). */
+const canonicalize = <T extends ChainAddress>(v: T): T => ({ ...v, address: canonicalAddress(v.chain, v.address)! });
+
+/** { chain, address } with the address in canonical form for that chain. */
+export const walletRefSchema = z.object(chainAddress).superRefine(checkAddress).transform(canonicalize);
 
 export const investigationStatusSchema = z.enum(["New", "Reviewing", "Cleared", "Escalated"]);
 
-export const createInvestigationSchema = z.object({
-  chain: chainSchema,
-  address: addressSchema,
-  clientReference: z.string().trim().max(120).default(""),
-  notes: z.string().trim().max(5000).default(""),
-});
+export const createInvestigationSchema = z
+  .object({
+    ...chainAddress,
+    clientReference: z.string().trim().max(120).default(""),
+    notes: z.string().trim().max(5000).default(""),
+  })
+  .superRefine(checkAddress)
+  .transform(canonicalize);
 
 export const updateInvestigationSchema = z
   .object({
@@ -42,4 +41,4 @@ export const updateInvestigationSchema = z
   })
   .refine((v) => Object.keys(v).length > 0, "No fields to update");
 
-export const createReportSchema = z.object({ chain: chainSchema, address: addressSchema });
+export const createReportSchema = walletRefSchema;
