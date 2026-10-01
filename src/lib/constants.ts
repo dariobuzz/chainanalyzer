@@ -25,6 +25,7 @@ export const ENTITY_TYPE_LABEL: Record<EntityType, string> = {
   stolen_funds: "Stolen Funds",
   high_risk_exchange: "High-Risk Exchange",
   unlicensed_service: "Unlicensed Service",
+  illicit_activity: "Other Illicit Activity",
   sanctioned: "Sanctioned Entity",
   unknown_wallet: "Unknown Wallet",
 };
@@ -39,6 +40,7 @@ export const RISK_ENTITY_CATEGORY: Partial<Record<EntityType, RiskCategory>> = {
   gambling: "gambling",
   high_risk_exchange: "high_risk_exchange",
   unlicensed_service: "unlicensed_service",
+  illicit_activity: "illicit_activity",
   sanctioned: "sanctioned_address",
 };
 
@@ -52,6 +54,8 @@ export const RISK_CATEGORY_LABEL: Record<RiskCategory, string> = {
   high_risk_exchange: "High-Risk Exchange",
   unlicensed_service: "Unlicensed Service",
   gambling: "Gambling",
+  illicit_activity: "Other Illicit Activity",
+  third_party_risk_score: "Third-Party Risk Score",
   bridge_exposure: "Bridge Exposure",
   dex_exposure: "DEX Exposure",
   high_velocity: "High Velocity Transactions",

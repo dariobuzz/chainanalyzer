@@ -4,7 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-const KIND_LABEL = { blockchain: "Blockchain", sanctions: "Sanctions", entity_labels: "Entity labels", pricing: "Pricing", demo: "Demo" } as const;
+const KIND_LABEL = { blockchain: "Blockchain", sanctions: "Sanctions", entity_labels: "Entity labels", risk_score: "Risk score", pricing: "Pricing", demo: "Demo" } as const;
 
 export function DataSourcesCard({ analysis }: { analysis: WalletAnalysis }) {
   return (

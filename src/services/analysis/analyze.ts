@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import type { ChainKey, DataMode, DataSource, Transfer, WalletAnalysis, WalletOverview } from "@/types/domain";
+import type { ChainKey, DataMode, DataSource, EntityLabel, Transfer, WalletAnalysis, WalletOverview } from "@/types/domain";
 import { config } from "@/lib/config";
 import { getStore } from "@/lib/db";
 import { CHAINS } from "@/services/blockchain/chains";
@@ -9,7 +9,15 @@ import type { RawWalletData } from "@/services/blockchain/types";
 import { DemoProvider } from "@/services/demo/demo-provider";
 import { createEntityRegistry } from "@/services/intelligence/entities";
 import { SanctionsScreener } from "@/services/intelligence/sanctions";
-import { assessRisk } from "@/services/intelligence/risk";
+import { assessRisk, type RiskInput } from "@/services/intelligence/risk";
+import {
+  METASLEUTH_LABEL_SOURCE,
+  METASLEUTH_RISK_SOURCE,
+  fetchMetaSleuthLabels,
+  fetchMetaSleuthRisk,
+  metasleuthLabelsEnabled,
+  metasleuthRiskEnabled,
+} from "@/services/intelligence/metasleuth";
 import { DEMO_PRICES, assetPrice, getLivePriceBook, nativePrice, pricedTokenAssets, pricingDataSource, type PriceBook } from "@/services/pricing/prices";
 import { analyzeBehavior } from "./behavior";
 import { buildCounterparties, valueTransfers } from "./counterparties";
@@ -79,6 +87,15 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
   const provider = demo ? new DemoProvider(chain) : getLiveProvider(chain);
   const warnings: string[] = [];
 
+  // Third-party risk score (live only): independent of the history, so it runs alongside it.
+  const thirdPartyRisk: Promise<RiskInput["thirdPartyRisk"]> =
+    !demo && metasleuthRiskEnabled()
+      ? fetchMetaSleuthRisk(chain, address).then(
+          (risk) => ({ ok: true as const, risk }),
+          (e) => ({ ok: false as const, error: (e as Error).message }),
+        )
+      : Promise.resolve(null);
+
   // 1. Data acquisition (provider abstraction) and prices, in parallel.
   const [raw, priceRes] = await Promise.all([
     provider.fetchWalletData(address, { maxTransactions: config.maxTransactions, balanceTokens: pricedTokenAssets(chain) }),
@@ -94,10 +111,28 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
     return { ...t, usdValue: p === null ? null : t.amount * p };
   });
 
-  // 3. Intelligence: entity registry + sanctions.
+  // 3. Intelligence: entity registry (+ external labels for the largest counterparties) and sanctions.
   const store = getStore();
   const custom = await store.listCustomEntities().catch(() => []);
-  const registry = createEntityRegistry({ demo, custom });
+  let external: EntityLabel[] = [];
+  let externalLabels: RiskInput["externalLabels"] = null;
+  if (!demo && metasleuthLabelsEnabled()) {
+    const ranked = rankCounterparties(address, transfers).slice(0, Math.max(0, config.metasleuth.maxLabels - 1));
+    try {
+      const res = await fetchMetaSleuthLabels(chain, [address, ...ranked]);
+      external = res.labels;
+      // The analyzed address is always first, so the counterparties checked are the rest.
+      const checked = Math.max(0, res.checked - 1);
+      // "Not detected among the counterparties checked" is only meaningful if some were checked.
+      externalLabels = checked > 0 ? { source: METASLEUTH_LABEL_SOURCE, checked } : null;
+      if (res.quotaLimited) {
+        warnings.push(`MetaSleuth daily label quota reached: ${checked} of the ${ranked.length} largest counterparties were checked.`);
+      }
+    } catch (e) {
+      warnings.push(`MetaSleuth labels unavailable: ${(e as Error).message}`);
+    }
+  }
+  const registry = createEntityRegistry({ demo, custom, external });
   const sanctions = new SanctionsScreener(demo);
   const sanctionsStatus = sanctions.status;
 
@@ -127,6 +162,27 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
     },
     pricingDataSource(book),
   ];
+  if (externalLabels || external.length) {
+    dataSources.push({
+      name: METASLEUTH_LABEL_SOURCE,
+      kind: "entity_labels",
+      detail: `Entity labels for the analyzed address and its ${externalLabels?.checked ?? 0} largest counterparties by volume (${external.length} labelled). Queried addresses are shared with BlockSec.`,
+      url: "https://metasleuth.io",
+      asOf: new Date().toISOString(),
+    });
+  }
+  const thirdParty = await thirdPartyRisk;
+  if (thirdParty?.ok) {
+    dataSources.push({
+      name: METASLEUTH_RISK_SOURCE,
+      kind: "risk_score",
+      detail: "Independent 1–5 risk score of the analyzed address (individual and interaction risk). The queried address is shared with BlockSec.",
+      url: "https://metasleuth.io",
+      asOf: new Date().toISOString(),
+    });
+  } else if (thirdParty) {
+    warnings.push(`MetaSleuth risk score unavailable: ${thirdParty.error}`);
+  }
 
   const risk = assessRisk({
     chain,
@@ -145,6 +201,8 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
     unidentifiedVolumeShare: totalVol > 0 ? unidentifiedVol / totalVol : 0,
     dataSources,
     demo,
+    externalLabels,
+    thirdPartyRisk: thirdParty,
   });
 
   const summary = buildSummary({
@@ -191,6 +249,19 @@ async function runAnalysis(chain: ChainKey, address: string, mode: DataMode): Pr
         : "USD values use current spot prices applied to all transfers (not historical prices). Tokens without a verified price are excluded from USD totals.",
     },
   };
+}
+
+/** Counterparties ordered by priced volume, then by number of transfers (most relevant first). */
+function rankCounterparties(subject: string, transfers: Transfer[]): string[] {
+  const stats = new Map<string, { usd: number; n: number }>();
+  for (const t of valueTransfers(transfers)) {
+    if (!t.counterparty || t.counterparty === subject) continue;
+    const s = stats.get(t.counterparty) ?? { usd: 0, n: 0 };
+    s.usd += t.usdValue ?? 0;
+    s.n += 1;
+    stats.set(t.counterparty, s);
+  }
+  return [...stats].sort((a, b) => b[1].usd - a[1].usd || b[1].n - a[1].n).map(([a]) => a);
 }
 
 function buildOverview(chain: ChainKey, raw: RawWalletData, transfers: Transfer[], uniqueCounterparties: number, book: PriceBook): WalletOverview {

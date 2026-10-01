@@ -90,6 +90,18 @@ export default function SettingsPage() {
               }
             />
             <Row label="ChainScope Entity Registry" ok value={`${formatNumber(registry.size)} labels`} hint={`Version ${registry.version} · ${registry.sourceName}`} />
+            <Row
+              label="MetaSleuth Address Label API"
+              ok={cfg.metasleuthLabelsConfigured ? true : null}
+              value={cfg.metasleuthLabelsConfigured ? `Configured · up to ${formatNumber(cfg.metasleuthMaxLabels)} addresses per analysis` : "Not configured"}
+              hint="Live mode only. Set METASLEUTH_LABEL_API_KEY. Queried addresses are shared with BlockSec."
+            />
+            <Row
+              label="MetaSleuth Risk Score API"
+              ok={cfg.metasleuthRiskConfigured ? true : null}
+              value={cfg.metasleuthRiskConfigured ? "Configured" : "Not configured"}
+              hint="Live mode only. Set METASLEUTH_RISK_API_KEY. Adds an independent 1–5 score of the analyzed wallet."
+            />
             <div className="mt-4">
               <p className="eyebrow mb-2">Registry coverage by category</p>
               <div className="flex flex-wrap gap-1.5">

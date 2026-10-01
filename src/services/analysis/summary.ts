@@ -66,7 +66,7 @@ export function buildSummary(args: {
   }
 
   // Sanctions
-  const sanctionedCps = counterparties.filter((c) => c.sanction);
+  const sanctionedCps = counterparties.filter((c) => c.sanction || c.riskTags.includes("sanctioned_address"));
   if (subjectSanction) {
     s.push(`The analyzed address itself matches an entry on the ${subjectSanction.source}: ${subjectSanction.entity} (program ${subjectSanction.program}, ${subjectSanction.reference}).`);
   } else if (sanctionedCps.length) {

@@ -44,6 +44,13 @@ export const config = {
   /** Wall-clock budget for paging through history, to stay within serverless timeouts (Netlify: 10 s by default). */
   historyTimeBudgetMs: int("HISTORY_TIME_BUDGET_MS", 6000, 1000, 120_000),
   maxTransactions: int("MAX_TRANSACTIONS", 1000, 50, 10000),
+  /** MetaSleuth (BlockSec AML API). Each API has its own key; both are optional and used in live mode only. */
+  metasleuth: {
+    labelApiKey: str("METASLEUTH_LABEL_API_KEY"),
+    riskApiKey: str("METASLEUTH_RISK_API_KEY"),
+    /** Counterparties labelled per analysis (by volume). Each address consumes one unit of the daily quota. */
+    maxLabels: int("METASLEUTH_MAX_LABELS", 100, 0, 1000),
+  },
   coingecko: {
     apiKey: str("COINGECKO_API_KEY"),
     apiUrl: str("COINGECKO_API_URL", "https://api.coingecko.com/api/v3"),
@@ -63,6 +70,9 @@ export function publicConfigStatus() {
     demoMode: config.demoMode,
     etherscanConfigured: Boolean(config.etherscanApiKey),
     trongridKeyConfigured: Boolean(config.tron.apiKey),
+    metasleuthLabelsConfigured: Boolean(config.metasleuth.labelApiKey),
+    metasleuthRiskConfigured: Boolean(config.metasleuth.riskApiKey),
+    metasleuthMaxLabels: config.metasleuth.maxLabels,
     solanaRpcCustom: config.rpc.solana !== "https://api.mainnet-beta.solana.com",
     bitcoinApiHosts: config.bitcoinApis.map((u) => new URL(u).host),
     maxTransactionsBitcoin: config.maxTransactionsBitcoin,

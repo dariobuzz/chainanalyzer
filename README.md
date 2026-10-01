@@ -57,6 +57,21 @@ npm run sanctions:sync
 
 This downloads the official OFAC SDN list (`SDN.CSV` + `SDN_COMMENTS.CSV`) from the U.S. Treasury and extracts every "Digital Currency Address", together with the entity, program and SDN entry number. The output goes to `data/sanctions/ofac-sdn.json`. A snapshot is already included. Run the command again regularly, since a sanctions list goes stale.
 
+### Third-party intelligence: MetaSleuth (optional)
+
+```env
+METASLEUTH_LABEL_API_KEY=...   # Address Label API
+METASLEUTH_RISK_API_KEY=...    # Risk Score API
+METASLEUTH_MAX_LABELS=100      # addresses labelled per analysis (one batch call)
+```
+
+In live mode, [MetaSleuth](https://metasleuth.io) by BlockSec adds two things on every supported chain:
+
+- **Labels.** The analyzed wallet and its largest counterparties by volume are labelled in one batch call. MetaSleuth categories are mapped onto ChainScope types: exchange, DEX, bridge, mixer, scam, darknet, ransomware, exploit → stolen funds, no-KYC → high-risk exchange, and terrorist / CSAM / laundering / blocked → *Other Illicit Activity*. Risk labels take precedence over the curated registry. With labels connected, categories without a match are reported as "not detected among the N counterparties checked" instead of "no verified intelligence".
+- **Risk score.** MetaSleuth's 1–5 score of the analyzed wallet, with its indicators as evidence, is added as the *Third-Party Risk Score* factor: 3 → +10, 4 → +30, 5 → +50 points. It may overlap with the other factors, and the report says so.
+
+Results are cached per instance: labels for 24 h, scores for 1 h. Every queried address is sent to BlockSec, which is stated in the report's data sources. MetaSleuth is never used in demo mode.
+
 ### PostgreSQL / Supabase (optional)
 
 ```env

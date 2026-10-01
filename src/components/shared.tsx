@@ -30,7 +30,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
   return <Badge variant={SEVERITY_VARIANT[severity]} className="capitalize">{severity}</Badge>;
 }
 
-const RISKY_TYPES: EntityType[] = ["mixer", "darknet", "scam", "ransomware", "stolen_funds", "sanctioned", "high_risk_exchange", "unlicensed_service", "gambling"];
+const RISKY_TYPES: EntityType[] = ["mixer", "darknet", "scam", "ransomware", "stolen_funds", "sanctioned", "high_risk_exchange", "unlicensed_service", "gambling", "illicit_activity"];
 
 export function EntityTypeBadge({ type }: { type: EntityType | "other" | "subject" }) {
   if (type === "other") return <Badge variant="outline">Other</Badge>;

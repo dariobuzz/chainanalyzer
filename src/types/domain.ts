@@ -27,6 +27,7 @@ export type EntityType =
   | "stolen_funds"
   | "high_risk_exchange"
   | "unlicensed_service"
+  | "illicit_activity"
   | "sanctioned"
   | "unknown_wallet";
 
@@ -195,6 +196,8 @@ export type RiskCategory =
   | "high_risk_exchange"
   | "unlicensed_service"
   | "gambling"
+  | "illicit_activity"
+  | "third_party_risk_score"
   | "bridge_exposure"
   | "dex_exposure"
   | "high_velocity"
@@ -224,7 +227,7 @@ export interface RiskIndicator extends Omit<RiskFactor, "severity"> {
 
 export interface DataSource {
   name: string;
-  kind: "blockchain" | "sanctions" | "entity_labels" | "pricing" | "demo";
+  kind: "blockchain" | "sanctions" | "entity_labels" | "risk_score" | "pricing" | "demo";
   detail: string;
   url?: string;
   asOf?: string;

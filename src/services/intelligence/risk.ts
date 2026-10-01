@@ -15,6 +15,7 @@ import type {
 import { METHODOLOGY_VERSION, NO_INTEL, RISK_CATEGORY_LABEL, RISK_ENTITY_CATEGORY, riskLevelFor } from "@/lib/constants";
 import { formatPct, formatUsd, shortAddress } from "@/lib/format";
 import { CHAINS } from "@/services/blockchain/chains";
+import type { ThirdPartyRisk } from "./metasleuth";
 
 /**
  * ChainScope Risk Engine (methodology CS-RISK-0.1)
@@ -27,6 +28,8 @@ import { CHAINS } from "@/services/blockchain/chains";
  *     reported as "Unknown / No verified intelligence available" and add 0 points.
  *  4. Score = min(100, Σ contributions). A direct sanctions match on the analyzed
  *     address sets the score to 100.
+ *  5. An optional third-party risk score (MetaSleuth) is one more documented
+ *     factor, with its own indicators as evidence; it never replaces the others.
  */
 
 interface VerifiedRule {
@@ -46,6 +49,14 @@ export const VERIFIED_RULES: VerifiedRule[] = [
   { category: "ransomware", entityTypes: ["ransomware"], base: 35, scale: 25, severity: "critical", why: "Exposure to addresses attributed to ransomware operations." },
   { category: "stolen_funds", entityTypes: ["stolen_funds"], base: 30, scale: 25, severity: "high", why: "Exposure to addresses attributed to hacks or thefts." },
   { category: "darknet_exposure", entityTypes: ["darknet"], base: 30, scale: 25, severity: "high", why: "Exposure to addresses attributed to darknet markets." },
+  {
+    category: "illicit_activity",
+    entityTypes: ["illicit_activity"],
+    base: 35,
+    scale: 25,
+    severity: "critical",
+    why: "Exposure to addresses attributed to terrorist financing, child abuse material, laundering, or blocked by a stablecoin issuer.",
+  },
   { category: "mixer_exposure", entityTypes: ["mixer"], base: 25, scale: 25, severity: "high", why: "Mixers break the traceability of funds." },
   { category: "known_scam", entityTypes: ["scam"], base: 20, scale: 20, severity: "high", why: "Exposure to addresses attributed to scams or phishing." },
   { category: "high_risk_exchange", entityTypes: ["high_risk_exchange"], base: 12, scale: 13, severity: "medium", why: "Exchanges with weak or no KYC/AML controls." },
@@ -70,7 +81,15 @@ export interface RiskInput {
   unidentifiedVolumeShare: number;
   dataSources: DataSource[];
   demo: boolean;
+  /** External label provider consulted for the largest counterparties (null when not used). */
+  externalLabels: { source: string; checked: number } | null;
+  /** Third-party risk score of the analyzed address (null when not configured). */
+  thirdPartyRisk: { ok: true; risk: ThirdPartyRisk } | { ok: false; error: string } | null;
 }
+
+/** Points added by the third-party score: only elevated scores contribute. */
+const THIRD_PARTY_POINTS: Record<number, number> = { 3: 10, 4: 30, 5: 50 };
+const THIRD_PARTY_LEVEL: Record<number, string> = { 1: "No Risk", 2: "Low Risk", 3: "Medium Risk", 4: "High Risk", 5: "Critical Risk" };
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
@@ -150,6 +169,17 @@ function verifiedIndicators(input: RiskInput): RiskIndicator[] {
     }
 
     const coverage = rule.entityTypes.reduce((s, t) => s + (input.registryCoverage[t] ?? 0), 0);
+    if (input.externalLabels) {
+      return {
+        ...base,
+        status: "not_detected",
+        severity: null,
+        scoreContribution: 0,
+        description: `No address labelled as ${label.toLowerCase()} among the ${input.externalLabels.checked} largest counterparties checked against ${input.externalLabels.source}${coverage ? ` or the ChainScope Entity Registry` : ""}. Coverage is partial: absence of a match is not proof of absence.`,
+        evidence: [],
+        source: coverage ? `${input.externalLabels.source}; ChainScope Entity Registry` : input.externalLabels.source,
+      };
+    }
     if (coverage > 0) {
       return {
         ...base,
@@ -171,6 +201,39 @@ function verifiedIndicators(input: RiskInput): RiskIndicator[] {
       source: "—",
     };
   });
+}
+
+function thirdPartyIndicator(input: RiskInput): RiskIndicator | null {
+  const t = input.thirdPartyRisk;
+  if (!t) return null;
+  const base = { category: "third_party_risk_score" as const, label: RISK_CATEGORY_LABEL.third_party_risk_score, group: "verified_intelligence" as const };
+  if (!t.ok) {
+    return { ...base, status: "insufficient_data", severity: null, scoreContribution: 0, description: `Third-party risk score unavailable: ${t.error}`, evidence: [], source: "—" };
+  }
+  const { score, indicators, provider } = t.risk;
+  const points = THIRD_PARTY_POINTS[score] ?? 0;
+  const level = THIRD_PARTY_LEVEL[score] ?? "unknown";
+  const evidence = indicators.map((i) => `${i.type}: ${i.name} (code ${i.code})`);
+  if (!points) {
+    return {
+      ...base,
+      status: "not_detected",
+      severity: null,
+      scoreContribution: 0,
+      description: `${provider} rates the analyzed address ${score}/5 (${level})${indicators.length ? "" : ", with no risk indicators reported"}.`,
+      evidence,
+      source: provider,
+    };
+  }
+  return {
+    ...base,
+    status: "detected",
+    severity: score >= 5 ? "critical" : score >= 4 ? "high" : "medium",
+    scoreContribution: points,
+    description: `${provider} rates the analyzed address ${score}/5 (${level}). This is an independent assessment based on BlockSec's own labels and interaction analysis; it may overlap with the indicators above.`,
+    evidence,
+    source: provider,
+  };
 }
 
 function behavioralIndicators(input: RiskInput): RiskIndicator[] {
@@ -318,13 +381,15 @@ function confidence(input: RiskInput): RiskAssessment["confidence"] {
     score -= 10;
     reasons.push(`${formatPct(input.unidentifiedVolumeShare * 100, 0)} of volume involves unidentified counterparties.`);
   }
-  reasons.push("Intelligence coverage limited to the connected datasets (OFAC SDN, ChainScope Entity Registry).");
+  const datasets = ["OFAC SDN", "ChainScope Entity Registry", ...(input.externalLabels || input.thirdPartyRisk?.ok ? ["MetaSleuth"] : [])];
+  reasons.push(`Intelligence coverage limited to the connected datasets (${datasets.join(", ")}).`);
   score = Math.max(0, score);
   return { level: score >= 75 ? "High" : score >= 50 ? "Medium" : "Low", score, reasons };
 }
 
 export function assessRisk(input: RiskInput): RiskAssessment {
-  const indicators = [...verifiedIndicators(input), ...behavioralIndicators(input)];
+  const thirdParty = thirdPartyIndicator(input);
+  const indicators = [...verifiedIndicators(input), ...(thirdParty ? [thirdParty] : []), ...behavioralIndicators(input)];
   const riskFactors: RiskFactor[] = indicators
     .filter((i) => i.status === "detected")
     .map((i) => ({

@@ -2,12 +2,14 @@ import "server-only";
 import type { ChainKey, EntityLabel, EntityType } from "@/types/domain";
 import { addressKey } from "@/lib/addresses";
 import { isEvmChain } from "@/services/blockchain/chains";
+import { RISK_ENTITY_CATEGORY } from "@/lib/constants";
 import seed from "./data/entities.seed.json";
 import demoIntel from "./data/demo-intelligence.json";
 
 /**
  * Entity Registry.
- * Resolution order: custom labels (DB / runtime, future) → curated seed → demo labels (demo mode only).
+ * Resolution order: custom labels (DB / runtime) → external risk labels (e.g. MetaSleuth sanctioned,
+ * scam…) → curated seed → other external labels → demo labels (demo mode only).
  * Schema mirrors the `entities` table: address, chain, entityName, entityType, source, confidence, lastUpdated.
  * Labels with chain "evm" apply to every EVM chain (same address on all of them).
  */
@@ -55,13 +57,16 @@ export class EntityRegistry {
   constructor(
     private readonly includeDemo: boolean,
     private readonly custom: Map<string, EntityLabel> = new Map(),
+    private readonly external: Map<string, EntityLabel> = new Map(),
   ) {}
 
   lookup(chain: ChainKey, address: string): EntityLabel | null {
     const a = addressKey(address);
     const keys = isEvmChain(chain) ? [`${chain}:${a}`, `evm:${a}`] : [`${chain}:${a}`];
     for (const k of keys) {
-      const hit = this.custom.get(k) ?? seedIndex.get(k) ?? (this.includeDemo ? demoIndex.get(k) : undefined);
+      const ext = this.external.get(k);
+      const riskyExt = ext && RISK_ENTITY_CATEGORY[ext.entityType] ? ext : undefined;
+      const hit = this.custom.get(k) ?? riskyExt ?? seedIndex.get(k) ?? ext ?? (this.includeDemo ? demoIndex.get(k) : undefined);
       if (hit) return hit;
     }
     return null;
@@ -91,6 +96,6 @@ export class EntityRegistry {
   }
 }
 
-export function createEntityRegistry(opts: { demo: boolean; custom?: EntityLabel[] }) {
-  return new EntityRegistry(opts.demo, index(opts.custom ?? []));
+export function createEntityRegistry(opts: { demo: boolean; custom?: EntityLabel[]; external?: EntityLabel[] }) {
+  return new EntityRegistry(opts.demo, index(opts.custom ?? []), index(opts.external ?? []));
 }
